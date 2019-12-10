@@ -30,7 +30,7 @@
     owner: root
     group: root
     mode: 0600
-  when: is_monitor
+  when: is_monitor|bool
   tags:
     - rsyslog
 
