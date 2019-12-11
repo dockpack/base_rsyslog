@@ -1,0 +1,63 @@
+---
+# Molecule test file created by base_crontab
+file:
+  /etc/rsyslog.conf:
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+    filetype: file
+    contains: []
+  /etc/rsyslog.d:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+    filetype: directory
+    contains: []
+  /var/log/lastlog:
+    exists: true
+    mode: "0640"
+    owner: root
+    group: root
+    filetype: file
+    contains: []
+  /var/log/messages:
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+    filetype: file
+    contains: []
+  /var/log/secure:
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+    filetype: file
+    contains: []
+  /var/log/spooler:
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+    filetype: file
+    contains: []
+  /var/log/wtmp:
+    exists: true
+    mode: "0640"
+    owner: root
+    group: utmp
+    filetype: file
+    contains: []
+service:
+  rsyslog:
+    enabled: true
+    running: true
+command:
+  grep 'FileCreateMode 0640' /etc/rsyslog.conf:
+    exit-status: 0
+    stdout:
+    - $FileCreateMode 0640
+    stderr: []
+    timeout: 10000
