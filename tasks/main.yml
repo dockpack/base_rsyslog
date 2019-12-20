@@ -67,3 +67,21 @@
     - compliance
     - rsyslog
     - permissions
+
+- name: 'ensure permissions are correct on wtmp'
+  file:
+    path: /var/log/wtmp
+    mode: 0640
+  tags:
+    - compliance
+    - rsyslog
+    - permissions
+
+- name: 'ensure permissions are correct on dmesg'
+  file:
+    path: /var/log/dmesg
+    mode: 0640
+  tags:
+    - compliance
+    - rsyslog
+    - permissions
