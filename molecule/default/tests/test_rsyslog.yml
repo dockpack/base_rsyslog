@@ -58,6 +58,6 @@ command:
   grep 'FileCreateMode 0640' /etc/rsyslog.conf:
     exit-status: 0
     stdout:
-    - $FileCreateMode 0640
+      - $FileCreateMode 0640
     stderr: []
     timeout: 10000
