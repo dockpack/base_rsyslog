@@ -20,6 +20,7 @@
     owner: root
     group: root
     mode: 0600
+  notify: restart rsyslog
   tags:
     - rsyslog
 
@@ -31,6 +32,7 @@
     group: root
     mode: 0600
   when: is_monitor|bool
+  notify: restart rsyslog
   tags:
     - rsyslog
 
@@ -41,22 +43,20 @@
     owner: root
     group: root
     mode: 0644
+  notify: restart rsyslog
   tags:
     - rsyslog
 
 - name: 'enable rsyslog'
   service:
     name: rsyslog
-    enabled: yes
+    enabled: true
+  notify: restart rsyslog
   tags:
     - rsyslog
 
-- name: 'restart rsyslog'
-  service:
-    name: rsyslog
-    state: restarted
-  tags:
-    - rsyslog
+- name: 'restart rsyslog if needed'
+  meta: flush_handlers
 
 - name: 'ensure permissions on all logfiles are configured'
   file:
@@ -81,6 +81,7 @@
   file:
     path: /var/log/dmesg
     mode: 0640
+  ignore_errors: true
   tags:
     - compliance
     - rsyslog
