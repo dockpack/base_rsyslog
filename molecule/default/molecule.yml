@@ -10,9 +10,20 @@ lint: |
   ansible-lint
 platforms:
   - name: base-rsyslog-centos7
-    image: milcom/centos7-systemd
-    privileged: true
+    image: centos:7.9.2009
+    command: /sbin/init
+    capabilities:
+      - CAP_NET_BIND_SERVICE
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
 provisioner:
   name: ansible
+  config_options:
+    defaults:
+      stdout_callback: yaml
+      executable: /bin/bash
 verifier:
   name: ansible
