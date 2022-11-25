@@ -1,10 +1,10 @@
 ---
-- name: 'remove sysklogd'
+- name: 'Remove sysklogd'
   yum:
     name: sysklogd
     state: absent
 
-- name: 'restart rsyslog'
+- name: 'Restart rsyslog'
   service:
     name: rsyslog
     state: restarted
