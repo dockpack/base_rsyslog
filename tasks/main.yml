@@ -20,6 +20,7 @@
     owner: root
     group: root
     mode: 0600
+    validate: 'rsyslogd -N1 -f %s'
   notify: Restart rsyslog
   tags:
     - rsyslog
