@@ -2,12 +2,8 @@
 # ansible_managed
 
 # Options to syslogd
-# -m 0 disables 'MARK' messages.
-# -rPortNumber Enables logging from remote machines. The listener will listen to the specified port.
-# -x disables DNS lookups on messages recieved with -r
 # See syslogd(8) for more details
-#SYSLOGD_OPTIONS="-m 0"
-SYSLOGD_OPTIONS="-c4 -x -4"
+SYSLOGD_OPTIONS="-n"
 # Options to klogd
 # -2 prints all kernel oops messages twice; once for klogd to decode, and
 #    once for processing with 'ksymoops'
