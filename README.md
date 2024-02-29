@@ -1,6 +1,6 @@
-[![Galaxy](https://img.shields.io/badge/galaxy-dockpack.base__rsyslog-blue.svg?style=flat)](https://galaxy.ansible.com/dockpack/base_rsyslog)
-![Build Status](https://travis-ci.com/dockpack/base_rsyslog.svg?branch=master)
-
 # base_rsyslog
 
-Ansible role to configure syslog in a compliant way.
+## Ansible role to configure rsyslog in a C2S compliant way.
+- Includes CIS benchmark verification with Molecule.
+- Includes an end-to-end test with a client and server docker network.
+- Configures client and server

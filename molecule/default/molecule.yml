@@ -4,19 +4,47 @@ dependency:
   name: galaxy
 driver:
   name: docker
-lint: |
-  set -e
-  yamllint .
-  ansible-lint
 platforms:
-  - name: base-rsyslog
+  - name: rsyslog-server
     image: dokken/almalinux-8
     pre_build_image: true
     command: /sbin/init
     privileged: true
     cgroupns_mode: host
     capabilities:
-      - CAP_NET_BIND_SERVICE
+      - SYS_ADMIN
+    docker_networks:
+      - name: 'syslog'
+        ipam_config:
+          - subnet: '10.16.0.0/24'
+    networks:
+      - name: "syslog"
+        ipv4_address: '10.16.0.10'
+    published_ports:
+      - 127.0.0.1:9514:514
+    groups:
+      - loghost
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - /var/lib/containerd
+  - name: rsyslog-client
+    image: dokken/almalinux-8
+    pre_build_image: true
+    command: /sbin/init
+    privileged: true
+    cgroupns_mode: host
+    capabilities:
+      - SYS_ADMIN
+    docker_networks:
+      - name: 'syslog'
+        ipam_config:
+          - subnet: '10.16.0.0/24'
+    networks:
+      - name: "syslog"
+        ipv4_address: '10.16.0.11'
     tmpfs:
       - /run
       - /tmp
@@ -28,6 +56,8 @@ provisioner:
   config_options:
     defaults:
       stdout_callback: yaml
+      callbacks_enabled: profile_tasks, timer
       executable: /bin/bash
+      remote_tmp: /tmp/.ansible
 verifier:
   name: ansible

@@ -1,3 +1,19 @@
 ---
 
-log_host: 'loghost'
+# Define loghost address and define inventory group
+#
+# [loghost]
+# syslog_host: '127.0.0.1'
+
+# default syslog port
+syslog_port: 514
+syslog_tls: 'off'
+
+# other configs will be deleted
+rsyslog_allowed_configs:
+  - /etc/rsyslog.d/01_modules.conf
+  - /etc/rsyslog.d/02_rules.conf
+  - /etc/rsyslog.d/21-cloudinit.conf
+  - /etc/rsyslog.conf
+
+...

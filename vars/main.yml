@@ -1,3 +1,41 @@
 ---
-# define log_host in group_vars
-is_monitor: "'{{ ansible_hostname }}' == '{{ log_host }}'"
+# Vars file for rsyslog role
+rsyslog_packages:
+  - rsyslog
+  - rsyslog-relp
+  - rsyslog-gnutls
+  - logrotate
+
+rsyslog_managed_files:
+  - path: /var/log
+    owner: root
+    group: wheel
+    mode: '0751'
+  - path: /var/log/lastlog
+    owner: root
+    group: utmp
+    mode: '0664'
+  - path: /var/log/maillog
+    owner: root
+    group: root
+    mode: '0600'
+    attr: '+a'
+  - path: /var/log/messages
+    owner: root
+    group: wheel
+    mode: '0640'
+    attr: '+a'
+  - path: /var/log/secure
+    owner: root
+    group: root
+    mode: '0600'
+    attr: '+a'
+  - path: /var/log/spooler
+    owner: root
+    group: root
+    mode: '0600'
+    attr: '+i'
+  - path: /var/log/wtmp
+    owner: root
+    group: utmp
+    mode: '0664'
