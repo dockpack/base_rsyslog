@@ -1,0 +1,30 @@
+# rsyslog configuration file
+# CIS 4.2.1.5 Ensure logging is configured
+
+# For more information see /usr/share/doc/rsyslog-*/rsyslog_conf.html
+# or latest version online at http://www.rsyslog.com/doc/rsyslog_conf.html
+# If you experience problems, see http://www.rsyslog.com/doc/troubleshoot.html
+
+{% if syslog_host is defined %}
+# Template for forwarding messages in RFC5424 format
+template(name="SecureForwardFormat" type="string" string="<%PRI%> %TIMESTAMP% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
+{% endif %}
+$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+
+# Set the default permissions for all log files
+$FileOwner root
+$FileGroup wheel
+# CIS 4.2.1.4 Ensure rsyslog default file permissions are configured
+$FileCreateMode 0640
+$DirCreateMode 0750
+$Umask 0022
+
+# Where to place spool and state files
+$WorkDirectory /var/lib/rsyslog
+
+# include all conf files in /etc/rsyslog.d/*.conf
+$IncludeConfig /etc/rsyslog.d/*.conf
+
+# Uncomment to enable debugging (useful for troubleshooting)
+#$DebugFile /var/log/rsyslog/debug.log
+#$DebugLevel 2

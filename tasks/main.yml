@@ -1,90 +1,107 @@
 ---
-- name: 'Ensure log_host is defined'
-  assert:
-    that: "'{{ log_host }}' is defined"
-  tags:
-    - rsyslog
 
-- name: 'Ensure package rsyslog is installed'
-  yum:
+- name: CIS 4.2.1.1 Ensure rsyslog is installed
+  ansible.builtin.yum:
+    name: "{{ rsyslog_packages }}"
+    state: present
+  notify: Restart rsyslog
+
+- name: CIS 4.2.1.2 Ensure rsyslog service is enabled
+  ansible.builtin.systemd:
     name: rsyslog
-    state: installed
-  notify: Remove sysklogd
-  tags:
-    - rsyslog
-
-- name: 'Copy /etc/rsyslog.conf file for normal host'
-  template:
-    src: etc-rsyslog.conf.j2
-    dest: /etc/rsyslog.conf
-    owner: root
-    group: root
-    mode: 0600
-    validate: 'rsyslogd -N1 -f %s'
-  notify: Restart rsyslog
-  tags:
-    - rsyslog
-
-- name: 'Rewrite /etc/rsyslog.conf file for remote loghost'
-  template:
-    src: etc-rsyslog.loghost.conf.j2
-    dest: /etc/rsyslog.conf
-    owner: root
-    group: root
-    mode: 0600
-  when: is_monitor|bool
-  notify: Restart rsyslog
-  tags:
-    - rsyslog
-
-- name: 'Copy /etc/sysconfig/rsyslog file'
-  template:
-    src: etc-sysconfig-rsyslog.j2
-    dest: /etc/sysconfig/rsyslog
-    owner: root
-    group: root
-    mode: 0644
-  notify: Restart rsyslog
-  tags:
-    - rsyslog
-
-- name: 'Enable rsyslog'
-  service:
-    name: rsyslog
+    daemon_reload: true
     enabled: true
   notify: Restart rsyslog
-  tags:
-    - rsyslog
 
-- name: 'Restart rsyslog if needed'
-  meta: flush_handlers
+- name: CIS 4.2.1.3 Ensure journald sends logs to rsyslog
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: '.*ForwardToSyslog=.*'
+    line: 'ForwardToSyslog=yes'
+    state: present
+  notify: Restart rsyslog
 
-- name: 'Ensure permissions on all logfiles are configured'
-  file:
-    path: /var/log
-    mode: 'g-wx,o-rwx'
-    recurse: true
-  tags:
-    - compliance
-    - rsyslog
-    - permissions
+- name: CIS 4.2.1.4 Ensure file permissions are configured
+  ansible.builtin.file:
+    path: "{{ file.path }}"
+    owner: "{{ file.owner }}"
+    group: "{{ file.group }}"
+    mode: "{{ file.mode }}"
+    attributes: "{{ file.attr | default(omit) }}"
+  changed_when: false  # changing attributes is still not idempotent
+  with_items: "{{ rsyslog_managed_files }}"
+  loop_control:
+    loop_var: file
+    label: "{{ file.path }}"
 
-- name: 'Ensure permissions are correct on wtmp'
-  file:
-    path: /var/log/wtmp
-    mode: 0640
-  tags:
-    - compliance
-    - rsyslog
-    - permissions
+- name: CIS 4.2.1.6 Ensure remote logging is configured
+  when: inventory_hostname not in groups['loghost']
+  ansible.builtin.template:
+    src: "{{ item | basename }}.j2"
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ rsyslog_allowed_configs }}"
+  notify: Restart rsyslog
 
-- name: 'Ensure permissions are correct on dmesg'
-  file:
-    path: /var/log/dmesg
-    mode: 0640
-    state: touch
-  changed_when: false
-  tags:
-    - compliance
-    - rsyslog
-    - permissions
+- name: CIS 4.2.1.5 Ensure logging is configured
+  when: inventory_hostname not in groups['loghost']
+  ansible.builtin.template:
+    src: rsyslog.conf.j2
+    dest: /etc/rsyslog.conf
+    owner: root
+    group: root
+    mode: '0600'
+    validate: 'rsyslogd -N1'
+  notify: Restart rsyslog
+
+- name: Purge unmanaged config files
+  block:
+    - name: Find all config file in /etc/rsyslog.d/
+      ansible.builtin.find:
+        paths: /etc/rsyslog.d/
+        patterns: "*.conf"
+      register: found_configs
+
+    - name: Delete unmanaged config files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ found_configs.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      when: item.path not in rsyslog_allowed_configs
+
+- name: Manage /etc/rsyslog.conf file for remote loghost
+  when: inventory_hostname in groups['loghost']
+  ansible.builtin.template:
+    src: rsyslog.loghost.conf.j2
+    dest: /etc/rsyslog.conf
+    owner: root
+    group: root
+    mode: '0600'
+    validate: 'rsyslogd -N1 -f %s'
+  notify: Restart rsyslog
+
+- name: Update TLS certificate
+  when: syslog_ca_cert is defined
+  ansible.builtin.copy:
+    src: "{{ syslog_ca_cert }}"
+    dest: /etc/pki/tls/certs/
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reduce LogLevel of systemd
+  ansible.builtin.lineinfile:
+    path: "/etc/systemd/{{ item }}"
+    regexp: '.*LogLevel=.*'
+    line: 'LogLevel=warning'
+    state: present
+  loop:
+    - user.conf
+    - system.conf
+  notify: Reload systemd
+
+...

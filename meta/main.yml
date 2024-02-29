@@ -2,7 +2,7 @@
 
 galaxy_info:
   author: Bas Meijer
-  description: RSyslog
+  description: CIS compliant remote Syslog with e2e tests
   company: dockpack
   role_name: base_rsyslog
   namespace: dockpack

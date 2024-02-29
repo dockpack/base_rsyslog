@@ -1,61 +1,60 @@
 ---
-# This is an example playbook to execute goss tests.
-# Tests need distributed to the appropriate ansible host/groups
-# prior to execution by `goss validate`.
-
 - name: Verify
-  hosts: all
-  become: true
+  hosts: rsyslog-client
   vars:
-    goss_version: v0.3.7
-    goss_arch: amd64
-    goss_dst: /usr/local/bin/goss
-    # yamllint disable-line rule:line-length
-    goss_sha256sum: 357f5c7f2e7949b412bce44349cd32ab19eb3947255a8ac805f884cc2c326059
-    # yamllint disable-line rule:line-length
-    goss_url: "https://github.com/aelsabbahy/goss/releases/download/{{ goss_version }}/goss-linux-{{ goss_arch }}"
-    goss_test_directory: /tmp
-    goss_format: tap
+    this_role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
   tasks:
-    - name: Download and install Goss
-      get_url:
-        url: "{{ goss_url }}"
-        dest: "{{ goss_dst }}"
-        checksum: "sha256:{{ goss_sha256sum }}"
-        mode: 0755
-      register: download_goss
-      until: download_goss is succeeded
-      retries: 3
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: rpm
 
-    - name: Copy Goss tests to remote
-      copy:
-        src: "{{ item }}"
-        dest: "{{ goss_test_directory }}/{{ item | basename }}"
-        mode: 0644
-      with_fileglob:
-        - "{{ lookup('env', 'MOLECULE_VERIFIER_TEST_DIRECTORY') }}/test_*.yml"
+    - name: Gather service facts
+      ansible.builtin.service_facts:
 
-    - name: Register test files
-      shell: "ls {{ goss_test_directory }}/test_*.yml"
+    - name: Audit rsyslog
+      ansible.builtin.include_role:
+        name: "{{ this_role }}"
+        tasks_from: verify
+
+- name: Test E2E security events
+  hosts: rsyslog-client
+
+  tasks:
+    - name: Test a privileged useradd operation
+      ansible.builtin.user:
+        name: test_user
+        shell: /bin/bash
+
+    - name: Test a command as test_ user
+      become: true
+      become_user: test_user
+      ansible.builtin.command: id
       changed_when: false
-      register: test_files
 
-    - name: Execute Goss tests
-      environment:
-        # yamllint disable-line rule:line-length
-        PATH: '/opt/rh/rh-git218/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-      command: "{{ goss_dst }} -g {{ item }} validate -f {{ goss_format }}"
+    - name: Test a command as root
+      become: true
+      ansible.builtin.command: 'ps -ef'
       changed_when: false
-      register: test_results
-      with_items: "{{ test_files.stdout_lines }}"
+      register: processes
 
-    - name: Display details about the Goss results
-      debug:
-        msg: "{{ item.stdout_lines }}"
-      with_items: "{{ test_results.results }}"
+    - name: List processes
+      ansible.builtin.debug:
+        msg: "{{ processes.stdout_lines }}"
+        verbosity: 2
 
-    - name: Fail when tests fail
-      fail:
-        msg: "Goss failed to validate"
-      when: item.rc != 0
-      with_items: "{{ test_results.results }}"
+- name: Verify E2E result
+  hosts: rsyslog-server
+  tasks:
+    - name: Collect the log on server
+      ansible.builtin.command: cat /var/log/remotes
+      changed_when: false
+      register: remote_log
+
+    - name: Search the remote log to assert events are logged
+      ansible.builtin.assert:
+        that:
+          - remote_log.stdout_lines is search('sudo')
+          - remote_log.stdout_lines is search('useradd')
+
+...

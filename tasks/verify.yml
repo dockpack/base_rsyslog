@@ -1,0 +1,73 @@
+---
+
+- name: CIS controls for rsyslog
+  when: inventory_hostname not in groups['loghost']
+  block:
+
+    - name: CIS 4.2.1.1 Ensure rsyslog is installed
+      ansible.builtin.assert:
+        quiet: true
+        that:
+          - "'rsyslog' in ansible_facts.packages"
+
+    - name: CIS 4.2.1.2 Ensure rsyslog is enabled
+      ansible.builtin.assert:
+        quiet: true
+        that:
+          - ansible_facts.services['rsyslog.service'].status == 'enabled'
+
+    - name: CIS 4.2.1.3 Ensure journald sends logs to rsyslog
+      ansible.builtin.shell: |
+        grep ^\s*ForwardToSyslog /etc/systemd/journald.conf
+      register: forward_to_syslog
+      changed_when: false
+      failed_when: forward_to_syslog.rc | int != 0
+
+    - name: CIS 4.2.1.4 Ensure file permissions are configured
+      ansible.builtin.shell: |
+        grep '^\$FileCreateMode 0640' /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+      register: file_create_mode
+      changed_when: false
+      failed_when: file_create_mode.rc | int != 0
+
+    - name: CIS 4.2.1.5 Ensure logging is configured
+      check_mode: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: file
+      loop: "{{ rsyslog_allowed_configs }}"
+      register: rsyslog_configs
+
+    - name: CIS 4.2.1.5 Check logfiles are present
+      ansible.builtin.find:
+        paths: /var/log/
+        file_type: file
+      register: found_logs
+
+    - name: CIS 4.2.1.5 Ensure logfiles are current
+      ansible.builtin.debug:
+        msg: "mtime: {{ '%Y-%m-%d %H:%M:%S' | strftime(item.mtime) }}"
+      loop: "{{ found_logs.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: CIS 4.2.1.6 Ensure remote logging is configured
+      ansible.builtin.shell: |
+        grep -E '^\s*([^#]+\s+)?action\(([^#]+\s+)?\btarget=\"?[^#"]+\"?\b' /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+      register: remote_log_conf
+      changed_when: false
+      failed_when: remote_log_conf.rc | int != 0
+
+    - name: CIS 4.2.1.7 Check if client is not a syslog server
+      ansible.builtin.shell: |
+        grep -P -- '^\h*module\(load="imtcp"\)' /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+      register: remote_log_imtcp
+      changed_when: false
+      failed_when: remote_log_imtcp.rc | int != 1
+
+    - name: CIS 4.2.1.7 Check if client does not act as a server
+      ansible.builtin.shell: |
+        grep -P -- '^\h*input\(type="imtcp" port="514"\)' /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+      register: remote_log_input
+      changed_when: false
+      failed_when: remote_log_input.rc | int != 1

@@ -1,12 +1,11 @@
 ---
-- name: 'Remove sysklogd'
-  yum:
-    name: sysklogd
-    state: absent
 
-- name: 'Restart rsyslog'
-  service:
+- name: Reload systemd
+  ansible.builtin.command: systemctl daemon-reexec  # noqa: command-instead-of-module
+  changed_when: true
+
+- name: Restart rsyslog
+  ansible.builtin.systemd:
     name: rsyslog
     state: restarted
-  tags:
-    - rsyslog
+...

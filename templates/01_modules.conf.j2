@@ -1,0 +1,14 @@
+# CIS 4.2.1.5 Ensure logging is configured
+module(load="imuxsock"
+    SysSock.Use="off"
+)
+
+module(load="imjournal"
+    StateFile="imjournal.state"
+    Ratelimit.Interval="300"
+    Ratelimit.Burst="30000"
+)
+# provides RELP output module with TLS support
+module(load="omrelp"
+    tls.tlslib="gnutls"
+)

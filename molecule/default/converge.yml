@@ -3,6 +3,8 @@
   hosts: all
   vars:
     this_role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+    syslog_host: '10.16.0.10'
+    syslog_tls: 'off'
 
   tasks:
     - name: "Include {{ this_role }}"
