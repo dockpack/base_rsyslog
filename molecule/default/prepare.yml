@@ -1,0 +1,49 @@
+---
+- name: Prepare directory
+  hosts: localhost
+  connection: local
+  become: false
+  vars:
+    out_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/default/files"
+  tasks:
+    - name: Create files directory for testing
+      ansible.builtin.file:
+        path: "{{ out_dir }}"
+        state: directory
+        mode: '0700'
+
+- name: Prepare TLS certificates
+  hosts: loghost
+  vars:
+    syslog_cert: "{{ inventory_hostname }}"
+    out_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/default/files"
+    key_dir: /etc/pki/tls/private
+    crt_dir: /etc/pki/tls/certs
+  tasks:
+    - name: Generate certificate
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -x509
+          - -nodes
+          - -days
+          - 7
+          - -newkey
+          - rsa:4096
+          - -keyout
+          - "{{ key_dir }}/{{ syslog_cert }}.key"
+          - -out
+          - "{{ crt_dir }}/{{ syslog_cert }}.crt"
+          - -subj
+          - "/C=US/ST=Virginia/L=Langley/O=CIA/OU=Wire Tapping/CN={{ inventory_hostname }}"
+        creates: "{{ crt_dir }}/{{ syslog_cert }}.crt"
+
+    - name: Fetch TLS certificate
+      ansible.builtin.fetch:
+        src: "{{ crt_dir }}/{{ syslog_cert }}.crt"
+        flat: true
+        dest: "{{ out_dir }}/"
+        mode: '0644'
+
+...

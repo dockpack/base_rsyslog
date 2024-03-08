@@ -21,7 +21,7 @@ platforms:
       - name: "syslog"
         ipv4_address: '10.16.0.10'
     published_ports:
-      - 127.0.0.1:9514:514
+      - 127.0.0.1:6514:6514
     groups:
       - loghost
     tmpfs:

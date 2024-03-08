@@ -45,16 +45,36 @@
 
 - name: Verify E2E result
   hosts: rsyslog-server
+  gather_facts: false
+
   tasks:
-    - name: Collect the log on server
-      ansible.builtin.command: cat /var/log/remotes
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Ensure rsyslog service is running
+      ansible.builtin.assert:
+        quiet: true
+        that:
+          - ansible_facts.services['rsyslog.service'].state == 'running'
+
+    - name: Search for errors on rsyslog server
+      ansible.builtin.shell: set -o pipefail; grep rsyslog /var/log/messages | grep error | grep -v ansible.legacy.command
+      changed_when: false
+      register: remote_log
+      failed_when: false
+
+    - name: Display the errors, fail if any
+      ansible.builtin.debug:
+        msg: "{{ remote_log.stdout_lines }}"
+      failed_when: remote_log.stdout_lines is search('error')
+
+    - name: Collect the remote secure log on server
+      ansible.builtin.command: cat /var/log/remote/rsyslog-client/secure
       changed_when: false
       register: remote_log
 
-    - name: Search the remote log to assert events are logged
-      ansible.builtin.assert:
-        that:
-          - remote_log.stdout_lines is search('sudo')
-          - remote_log.stdout_lines is search('useradd')
-
+    - name: Display the log and assert useradd is logged
+      ansible.builtin.debug:
+        msg: "{{ remote_log.stdout_lines }}"
+      failed_when: remote_log.stdout_lines is not search('useradd')
 ...

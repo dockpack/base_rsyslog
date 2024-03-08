@@ -1,13 +1,14 @@
 ---
 
+# CIS 4.2.1.6 Ensure remote logging is configured
 # Define loghost address and define inventory group
-#
 # [loghost]
 # syslog_host: '127.0.0.1'
 
 # default syslog port
 syslog_port: 514
-syslog_tls: 'off'
+syslog_tls_port: 6514
+syslog_tls: 'on'
 
 # other configs will be deleted
 rsyslog_allowed_configs:
@@ -16,4 +17,16 @@ rsyslog_allowed_configs:
   - /etc/rsyslog.d/21-cloudinit.conf
   - /etc/rsyslog.conf
 
+# See `man 5 journald.conf`
+journald_configs:
+  Compress: 'yes'
+  ForwardToConsole: 'no'
+  ForwardToSyslog: 'yes'
+  MaxFileSec: 1day
+  MaxLevelStore: notice
+  MaxLevelSyslog: warning
+  Storage: persistent
+  SystemMaxFileSize: 100M
+  RateLimitBurst: 20000
+  RateLimitIntervalSec: 10s
 ...
