@@ -1,14 +1,141 @@
 # syslog server config
+module( load="imudp" )
+module(load="imuxsock")
+module(load="imrelp"
+    ruleset="relp"
+    tls.tlslib="openssl"
+)
+
 $FileCreateMode 0640
 
-module(load="imuxsock")
-module(load="imrelp" ruleset="relp")
 
-input(type="imrelp" port="{{ syslog_port }}" tls="{{ syslog_tls }}")
+## This RainerScript file roughly models the message routing provided in the
+## traditional local syslog storage configuration as provided in /etc/rsyslog.conf
+##
+## It is enhanced to use per-machine directories whilst using the same basenames
+##
+## These templates provide the dynamic filenames for storage based on the
+## per-message variables we define
+##
 
-ruleset(name="relp") {
-action(type="omfile" file="/var/log/remotes")
+template( name="remote_messages" type="list" )
+        {
+        property( name="$.mstoredir" )
+        constant( value="/" )
+        property( name="$.msubdir" )
+        constant( value="/messages" )
+        }
+template( name="remote_secure" type="list" )
+        {
+        property( name="$.mstoredir" )
+        constant( value="/" )
+        property( name="$.msubdir" )
+        constant( value="/secure" )
+        }
+template( name="remote_mail" type="list" )
+        {
+        property( name="$.mstoredir" )
+        constant( value="/" )
+        property( name="$.msubdir" )
+        constant( value="/mail" )
+        }
+template( name="remote_cron" type="list" )
+        {
+        property( name="$.mstoredir" )
+        constant( value="/" )
+        property( name="$.msubdir" )
+        constant( value="/cron" )
+        }
+template( name="remote_boot" type="list" )
+        {
+        property( name="$.mstoredir" )
+        constant( value="/" )
+        property( name="$.msubdir" )
+        constant( value="/boot.log" )
+        }
+template( name="remote_user" type="list" )
+        {
+        property( name="$.mstoredir" )
+        constant( value="/" )
+        property( name="$.msubdir" )
+        constant( value="/user" )
+        }
+
+##
+## This ruleset assumes it is handling a single message and routes it
+## into the requisite file.
+## It will be called by other rulesets which are performing the
+## actual listen/receive operations.
+##
+
+ruleset( name="remote_store" )
+{
+    # (Un)Comment one of the following pairs
+    #
+    # store in /var/log/remote/<MACHINE>/<file>
+    reset $.mstoredir = "/var/log/remote";
+    reset $.msubdir = $hostname;
+
+    # store in /var/log/<file>
+    #reset $.mstoredir = "/var/log/";
+    #reset $.msubdir = "";
+
+
+    # Rainer-script equivalent of
+    # *.info;mail.none;authpriv.none;cron.none                /var/log/messages
+    if (    prifilt("*.info")
+        and $syslogfacility-text != 'mail'
+        and $syslogfacility-text != 'authpriv'
+        and $syslogfacility-text != 'cron'
+       )
+    then
+    {
+        action( type="omfile" DynaFile="remote_messages" )
+    }
+
+    # authpriv.*                                              /var/log/secure
+    if ( $syslogfacility-text == 'authpriv' )
+    then
+    {
+        action( type="omfile" DynaFile="remote_secure" )
+    }
+
+    # mail.*                                              /var/log/maillog
+    if ( $syslogfacility-text == 'mail' )
+    then
+    {
+        action( type="omfile" DynaFile="remote_mail" )
+    }
+
+    # cron.*                                              /var/log/cron
+    if ( $syslogfacility-text == 'cron' )
+    then
+    {
+        action( type="omfile" DynaFile="remote_cron" )
+    }
+
+    # local7.*                                              /var/log/boot.log
+    if ( $syslogfacility-text == 'local7' )
+    then
+    {
+        action( type="omfile" DynaFile="remote_boot" )
+    }
+
+    # user.notice - allows capture of default "logger" messages
+    # very useful for testing
+    if (    $syslogfacility-text == 'user'
+        and $syslogseverity-text == 'notice'
+       )
+    then
+    {
+        #action( type="omfile" DynaFile="remote_user" )
+        action( type="omfile" file="/var/log/user" )
+    }
+
+    # presume that if this ruleset has been called then it is sole storage
+    stop
 }
+
 
 # Log anything (except mail) of level info or higher.
 # Don't log private authentication messages!
@@ -25,3 +152,41 @@ cron.*                                        /var/log/cron
 uucp,news.crit                                /var/log/spooler
 # Save boot messages also to boot.log
 local7.*                                      /var/log/boot.log
+
+## Simplest case. UDP reception
+##
+## Issues:
+##      UDP is an unreliable protocol.
+##      Common knowledge, but always worth repeating
+##      Messages can be dropped anywhere in the network path
+##      This is not a bug but an inherent property of UDP
+##      That said, sometimes this is the only method available
+##      for more primitive devices to ship log messages
+##
+##      Messages go over the network in clear.
+##
+
+
+input(  type="imudp"
+        port="{{ syslog_port }}"
+        ruleset="remote_store"
+)
+
+{% if syslog_tls == 'on' %}
+## Reliable Delivery over TCP. Plain & TLS
+## This method adds an application handshake on top of the TLS/TCP
+## method so that should a connection be broken any messages in flight
+## will be retransmitted when the connection is reestablished
+
+## Include a TLS method
+input(  type ="imrelp"
+        port ="{{ syslog_tls_port }}"
+        tls = "on"
+        tls.cacert      = "/etc/pki/tls/certs/{{ syslog_cert }}.crt"
+        # tls.authMode            = "x509/name"
+        # tls.permittedPeer       = ["*.example.com","*.example.net"]
+        tls.mycert      = "/etc/pki/tls/certs/{{ syslog_cert }}.crt"
+        tls.myprivkey   = "/etc/pki/tls/private/{{ syslog_cert }}.key"
+        ruleset="remote_store"
+)
+{% endif %}

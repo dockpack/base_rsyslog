@@ -1,11 +1,13 @@
 ---
-# Vars file for rsyslog role
+# CIS 4.2.1.1 Ensure rsyslog is installed
 rsyslog_packages:
   - rsyslog
+  - rsyslog-doc
   - rsyslog-relp
-  - rsyslog-gnutls
+  - rsyslog-openssl
   - logrotate
 
+# CIS 4.2.1.4 Ensure file permissions are configured
 rsyslog_managed_files:
   - path: /var/log
     owner: root

@@ -28,14 +28,16 @@ ruleset(
     local4.*,local5.* -/var/log/localmessages
     local6.*          -/var/log/localmessages
     local7.* /var/log/boot.log
-# CIS 4.2.1.6 Ensure rsyslog is configured to send logs to a remote log host
 {% if syslog_host is defined %}
-    auth,authpriv.*   action(type="omrelp" target="{{ syslog_host }}" port="{{ syslog_port }}"
-    {% if syslog_tls is defined and syslog_ca_cert is defined %}
-                         tls="{{ syslog_tls }}"
-                         tls.caCert="/etc/pki/tls/certs/{{ syslog_ca_cert }}"
+{% if syslog_tls == 'on' and syslog_cert is defined %}
+    auth,authpriv.*   action(type="omrelp" target="{{ syslog_host }}" port="{{ syslog_tls_port }}"
+                         tls="on"
+                         tls.cacert="/etc/pki/tls/certs/{{ syslog_cert }}.crt"
                          tls.authMode="fingerprint"
-    {% endif %}
+{% else %}
+    auth,authpriv.*   action(type="omrelp" target="{{ syslog_host }}" port="{{ syslog_port }}"
+                         tls="off"
+{% endif %}
                          template="SecureForwardFormat"
                          action.resumeRetryCount="-1"
                          queue.type="linkedList"
